@@ -215,7 +215,7 @@
                 <span class="level-item has-text-grey">
                     
                     
-                    2 minutes read (About 335 words)
+                    2 minutes read (About 362 words)
                 </span>
                 
                 
@@ -224,7 +224,7 @@
         
         <h1 class="title is-size-3 is-size-4-mobile has-text-weight-normal">
             
-                <a class="has-link-black-ter" href="/2020/02/29/promisifying-functions/">promisifying functions</a>
+                <a class="has-link-black-ter" href="/2020/02/29/promisifying-functions/">Promisifying Asynchronous Functions</a>
             
         </h1>
         <div class="content">
@@ -233,7 +233,7 @@
 <figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">'fs'</span>);</span><br><span class="line"></span><br><span class="line">fs.readFile(<span class="string">'example.txt'</span>, (err, data) =&gt; &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) <span class="built_in">console</span>.error(err);</span><br><span class="line">  <span class="built_in">console</span>.log(data);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
 
 <p>Rather hard to read if you ask me. Imagine a scenario in which you might want to do more than printing to console, like sending that data to a client or parsing it for usable data. Or you may want to use it in a for loop, which is synchronous by nature. Worst case, you may want to call another asynchronous method later on, and thus end up with a callback within a callback. More of those and you enter “callback hell” (it’s a real term).</p>
-<h2 id="Promises-to-the-Rescue"><a href="#Promises-to-the-Rescue" class="headerlink" title="Promises to the Rescue"></a>Promises to the Rescue</h2><p>Promises allow you to return a proxy value from an asynchronous function as you would with a synchronous one. That proxy value can later be resolved on success or rejected on failure. Therefore, Promises do not need callback functions.</p>
+<h2 id="Promises-to-the-Rescue"><a href="#Promises-to-the-Rescue" class="headerlink" title="Promises to the Rescue"></a>Promises to the Rescue</h2><p>Promises allow you to call asynchronous functions as you would synchronous ones. A Promise is a proxy whose value is unknown when returned from an asynchronous function. If the function later succeeds, the Promise can be fulfilled with a known value; if the function fails, the Promise can be rejected with a reason. In other words, a Promise handles the callback for you behind the scene.</p>
 <p>Any asynchronous method can be wrapped in a Promise, or “promisified”. Starting with Node v8, the built-in <code>util</code> module features a <code>promisify()</code> method for this purpose. Let’s use it on the <code>readFile()</code> example:</p>
 <figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">'fs'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; promisify &#125; = <span class="built_in">require</span>(<span class="string">'util'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> readFile = promisify(fs.readFile);</span><br></pre></td></tr></table></figure>
 
@@ -241,7 +241,7 @@
 <figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="keyword">let</span> data = readFile(<span class="string">'example.txt'</span>);</span><br><span class="line">  <span class="comment">// Do something else while waiting for readFile to resolve</span></span><br><span class="line">  ...</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="keyword">await</span> data);</span><br><span class="line">&#125; <span class="keyword">catch</span> (err) &#123;</span><br><span class="line">  <span class="built_in">console</span>.error(err);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p><strong>Important</strong>: Remember that the keyword <code>await</code> can only be used in an <code>async</code> function! </p>
-<p>Next, learn how to <a href="/2020/02/29/avoid-blocking-promises/">use Promises efficiently</a>.</p>
+<p>Next, learn how to <a href="/2020/02/29/handling-blocking-awaits/">use Promises efficiently</a>.</p>
 
         </div>
         
@@ -462,14 +462,14 @@
             
             <a href="/2020/02/29/promisifying-functions/" class="media-left">
                 <p class="image is-64x64">
-                    <img class="thumbnail" src="/images/thumbnail.svg" alt="promisifying functions">
+                    <img class="thumbnail" src="/images/thumbnail.svg" alt="Promisifying Asynchronous Functions">
                 </p>
             </a>
             
             <div class="media-content">
                 <div class="content">
                     <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2020-02-29T21:42:15.000Z">2020-02-29</time></div>
-                    <a href="/2020/02/29/promisifying-functions/" class="title has-link-black-ter is-size-6 has-text-weight-normal">promisifying functions</a>
+                    <a href="/2020/02/29/promisifying-functions/" class="title has-link-black-ter is-size-6 has-text-weight-normal">Promisifying Asynchronous Functions</a>
                     <p class="is-size-7 is-uppercase">
                         <a class="has-link-grey -link" href="/categories/JavaScript/">JavaScript</a>
                     </p>
@@ -564,14 +564,14 @@
             
             <a href="/2020/02/29/promisifying-functions/" class="media-left">
                 <p class="image is-64x64">
-                    <img class="thumbnail" src="/images/thumbnail.svg" alt="promisifying functions">
+                    <img class="thumbnail" src="/images/thumbnail.svg" alt="Promisifying Asynchronous Functions">
                 </p>
             </a>
             
             <div class="media-content">
                 <div class="content">
                     <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2020-02-29T21:42:15.000Z">2020-02-29</time></div>
-                    <a href="/2020/02/29/promisifying-functions/" class="title has-link-black-ter is-size-6 has-text-weight-normal">promisifying functions</a>
+                    <a href="/2020/02/29/promisifying-functions/" class="title has-link-black-ter is-size-6 has-text-weight-normal">Promisifying Asynchronous Functions</a>
                     <p class="is-size-7 is-uppercase">
                         <a class="has-link-grey -link" href="/categories/JavaScript/">JavaScript</a>
                     </p>
