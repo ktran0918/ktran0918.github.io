@@ -136,6 +136,74 @@
         
         <div class="level article-meta is-size-7 is-uppercase is-mobile is-overflow-x-auto">
             <div class="level-left">
+                <time class="level-item has-text-grey" datetime="2020-03-01T06:55:34.000Z">2020-02-29</time>
+                
+                <div class="level-item">
+                <a class="has-link-grey -link" href="/categories/JavaScript/">JavaScript</a>
+                </div>
+                
+                
+                <span class="level-item has-text-grey">
+                    
+                    
+                    3 minutes read (About 516 words)
+                </span>
+                
+                
+            </div>
+        </div>
+        
+        <h1 class="title is-size-3 is-size-4-mobile has-text-weight-normal">
+            
+                <a class="has-link-black-ter" href="/2020/02/29/handling-blocking-awaits/">Handling Blocking Awaits</a>
+            
+        </h1>
+        <div class="content">
+            <p><code>Promise</code>, <code>async</code>, and <code>await</code> are nice. However, while they allow a developer to write asynchronous code in a synchronous style, one must avoid treating them in a synchronous way, thus overlooking the benefits of non-blocking JavaScript. Here’s an example:</p>
+<p>At my work, we deploy a couple of Node.js scripts for syncing computer entries in <a href="https://www.teamdynamix.com/">TeamDynamix</a> (our IT management system) with those in <a href="https://docs.microsoft.com/en-us/configmgr/core/understand/introduction">SCCM</a> and <a href="https://www.jamf.com/products/jamf-pro/device-management/">JAMF Pro</a> (our device management system for Windows and Apple computers).</p>
+<p>Each script begins by pulling a relatively large amount of data external databases and APIs, namely:</p>
+<ul>
+<li>List of all previously synced computer entries (we call them assets) from TeamDynamix</li>
+<li>List of all assets from SCCM or JAMF Pro, depending on the script</li>
+<li>List of all department entries</li>
+<li>List of all manufacturer entries</li>
+</ul>
+<p>Each of those calls can retrieve data independently of others. Ideally they should execute simultaneously in the background. How can we use <code>await</code> in a way that they don’t block each other?</p>
+<h2 id="Solution-Promise-all"><a href="#Solution-Promise-all" class="headerlink" title="Solution: Promise.all()"></a>Solution: <code>Promise.all()</code></h2><p>Below is a very close simplification of what we used to do:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="keyword">let</span> syncedAssets = <span class="keyword">await</span> getSyncedAssets();</span><br><span class="line">  <span class="keyword">let</span> sccmAssets = <span class="keyword">await</span> getSccmAssets();</span><br><span class="line">  <span class="keyword">let</span> departments = <span class="keyword">await</span> getDepartments();</span><br><span class="line">  <span class="keyword">let</span> manufacturers = <span class="keyword">await</span> getManufacturers();</span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">catch</span> (err) &#123;</span><br><span class="line">  <span class="built_in">console</span>.error(err);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>This was inefficient. You can see how each call must “await” on the previous one to resolve. This chain of blocking Promises unnecessary added to the total runtime.</p>
+<p>The solution: use <code>Promise.all()</code> to call and resolve all asynchronous calls at once. <code>Promise.all()</code> returns a single Promise that can be resolved when all of handled Promises are resolved, or rejected when any one is rejected.</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="comment">// Promise.all() takes an iterable as argument</span></span><br><span class="line">  <span class="keyword">let</span> syncData = <span class="keyword">await</span> <span class="built_in">Promise</span>.all([</span><br><span class="line">    getSyncedAssets,</span><br><span class="line">    getSccmAssets,</span><br><span class="line">    getDepartments,</span><br><span class="line">    getManufacturers</span><br><span class="line">  ]);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// When resolved, the Promise returns an iterable</span></span><br><span class="line">  <span class="comment">// containing individual data in the order of their respective calls</span></span><br><span class="line">  <span class="keyword">let</span> syncedAssets = syncData[<span class="number">0</span>];</span><br><span class="line">  <span class="keyword">let</span> sccmAssets = syncData[<span class="number">1</span>];</span><br><span class="line">  <span class="keyword">let</span> departments = syncData[<span class="number">2</span>];</span><br><span class="line">  <span class="keyword">let</span> manufacturers = syncData[<span class="number">3</span>]; </span><br><span class="line"></span><br><span class="line">&#125; <span class="keyword">catch</span> (err) &#123;</span><br><span class="line">  <span class="built_in">console</span>.error(err);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>The resulting runtime is reduced to the runtime of whichever method takes the longest to resolve.</p>
+<h2 id="Use-await-Judiciously"><a href="#Use-await-Judiciously" class="headerlink" title="Use await Judiciously"></a>Use <code>await</code> Judiciously</h2><p>It’s important to remember that you don’t always need to <code>await</code> a Promise to resolve. <code>await</code> blocks code execution; it’s ideally used when the subsequent code relies on the resolved value from a Promise. If you don’t need a return value from an asynchronous call, consider dropping <code>await</code> so it is non-blocking.</p>
+<p>Let’s extend the example above. For debugging purposes we want to write SCCM assets to a file. The method <code>writeFile()</code> from the <code>fs</code> module doesn’t return any data when finished, so it doesn’t need an <code>await</code>:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">'fs'</span>);</span><br><span class="line">  <span class="keyword">const</span> &#123; promisify &#125; = <span class="built_in">require</span>(<span class="string">'util'</span>);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Wrap fs.writeFile() in a Promise</span></span><br><span class="line">  <span class="keyword">const</span> writeFile = promisify(fs.writeFile);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Call writeFile without catching error</span></span><br><span class="line">  writeFile(<span class="string">'assets.json'</span>, syncedAssets);</span><br><span class="line">  <span class="comment">// with catching error (non-blocking)</span></span><br><span class="line">  writeFile(<span class="string">'assets.json'</span>, syncedAssets)</span><br><span class="line">    .catch(<span class="function"><span class="params">err</span> =&gt;</span> <span class="built_in">console</span>.error(err));</span><br></pre></td></tr></table></figure>
+
+<p>It’s subtle details like this that will improve the runtime of your JavaScript code!</p>
+
+        </div>
+        
+        
+        
+    </div>
+</div>
+
+
+
+
+
+
+
+
+    
+<div class="card">
+    
+    <div class="card-content article ">
+        
+        <div class="level article-meta is-size-7 is-uppercase is-mobile is-overflow-x-auto">
+            <div class="level-left">
                 <time class="level-item has-text-grey" datetime="2020-02-29T21:42:15.000Z">2020-02-29</time>
                 
                 <div class="level-item">
@@ -146,7 +214,7 @@
                 <span class="level-item has-text-grey">
                     
                     
-                    2 minutes read (About 328 words)
+                    2 minutes read (About 335 words)
                 </span>
                 
                 
@@ -159,22 +227,20 @@
             
         </h1>
         <div class="content">
-            <p>I can’t imagine what it was like before Promises were implemented in JavaScript, mostly because I didn’t start learning JavaScript until after ECMAScript 6 came out. Without Promises, it is just not possible to coordinate asynchronous operations. They also produce much more readable code.</p>
+            <p>I can’t imagine what it was like before Promises were implemented in JavaScript, mostly because I didn’t start learning JavaScript until after ECMAScript 6 came out. The fact of the matter is Promises make it considerably easy to coordinate asynchronous calls. They also help with writing readable code.</p>
 <p>Consider the <code>readFile()</code> method from Node’s <code>fs</code> module. Without Promises one might use it like this:</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">fs.readFile(<span class="string">'example.txt'</span>, (err, data) =&gt; &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) <span class="built_in">console</span>.error(err);</span><br><span class="line">  <span class="built_in">console</span>.log(data);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">'fs'</span>);</span><br><span class="line"></span><br><span class="line">fs.readFile(<span class="string">'example.txt'</span>, (err, data) =&gt; &#123;</span><br><span class="line">  <span class="keyword">if</span> (err) <span class="built_in">console</span>.error(err);</span><br><span class="line">  <span class="built_in">console</span>.log(data);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
 
-<p>Rather hard to read if you ask me. Imagine a scenario in which you might want to do more than printing to console, like sending that data to a client or parsing it for usable data. Or you may want to use it in a for loop, which is synchronous by nature. Worst case, you may want to call another asynchronous method later on, and thus end up with a callback within a callback. More of those and you enter “callback hell”.</p>
-<h2 id="Promises-to-the-Rescue"><a href="#Promises-to-the-Rescue" class="headerlink" title="Promises to the Rescue"></a>Promises to the Rescue</h2><p>Promises allow you to return a proxy value to from an asynchronous function as you would with a synchronous one. That proxy value can later be resolved on success or rejected on failure. Therefore, Promises do not need callback functions.</p>
+<p>Rather hard to read if you ask me. Imagine a scenario in which you might want to do more than printing to console, like sending that data to a client or parsing it for usable data. Or you may want to use it in a for loop, which is synchronous by nature. Worst case, you may want to call another asynchronous method later on, and thus end up with a callback within a callback. More of those and you enter “callback hell” (it’s a real term).</p>
+<h2 id="Promises-to-the-Rescue"><a href="#Promises-to-the-Rescue" class="headerlink" title="Promises to the Rescue"></a>Promises to the Rescue</h2><p>Promises allow you to return a proxy value from an asynchronous function as you would with a synchronous one. That proxy value can later be resolved on success or rejected on failure. Therefore, Promises do not need callback functions.</p>
 <p>Any asynchronous method can be wrapped in a Promise, or “promisified”. Starting with Node v8, the built-in <code>util</code> module features a <code>promisify()</code> method for this purpose. Let’s use it on the <code>readFile()</code> example:</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; promisify &#125; = <span class="built_in">require</span>(<span class="string">'util'</span>);</span><br><span class="line"><span class="keyword">const</span> readFile = promisify(fs.readFile);</span><br></pre></td></tr></table></figure>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> fs = <span class="built_in">require</span>(<span class="string">'fs'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; promisify &#125; = <span class="built_in">require</span>(<span class="string">'util'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> readFile = promisify(fs.readFile);</span><br></pre></td></tr></table></figure>
 
 <p>ES6 introduces the syntactic sugar <code>await</code> that makes writing Promises even better. Also, use it with <code>try</code> and <code>catch</code> for error handling:</p>
 <figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  <span class="keyword">let</span> data = readFile(<span class="string">'example.txt'</span>);</span><br><span class="line">  <span class="comment">// Do something else while waiting for readFile to resolve</span></span><br><span class="line">  ...</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="keyword">await</span> data);</span><br><span class="line">&#125; <span class="keyword">catch</span> (err) &#123;</span><br><span class="line">  <span class="built_in">console</span>.error(err);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 <p><strong>Important</strong>: Remember that the keyword <code>await</code> can only be used in an <code>async</code> function! </p>
-<!-- Learn how to [use Promises efficiently](/2020/02/29/avoid-blocking-promises/). -->
-
-<p>Check back later for another post on using Promises efficiently!</p>
+<p>Next, learn how to <a href="/2020/02/29/avoid-blocking-promises/">use Promises efficiently</a>.</p>
 
         </div>
         
@@ -231,11 +297,11 @@
             <div class="level-item has-text-centered is-marginless">
                 <div>
                     <p class="heading">
-                        Post
+                        Posts
                     </p>
                     <a href="/archives">
                         <p class="title has-text-weight-normal">
-                            1
+                            2
                         </p>
                     </a>
                 </div>
@@ -346,7 +412,7 @@
                 <span class="level-item">JavaScript</span>
             </span>
             <span class="level-end">
-                <span class="level-item tag">1</span>
+                <span class="level-item tag">2</span>
             </span>
         </a></li>
             </ul>
@@ -374,6 +440,25 @@
         
         <article class="media">
             
+            <a href="/2020/02/29/handling-blocking-awaits/" class="media-left">
+                <p class="image is-64x64">
+                    <img class="thumbnail" src="/images/thumbnail.svg" alt="Handling Blocking Awaits">
+                </p>
+            </a>
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2020-03-01T06:55:34.000Z">2020-02-29</time></div>
+                    <a href="/2020/02/29/handling-blocking-awaits/" class="title has-link-black-ter is-size-6 has-text-weight-normal">Handling Blocking Awaits</a>
+                    <p class="is-size-7 is-uppercase">
+                        <a class="has-link-grey -link" href="/categories/JavaScript/">JavaScript</a>
+                    </p>
+                </div>
+            </div>
+        </article>
+        
+        <article class="media">
+            
             <a href="/2020/02/29/promisifying-functions/" class="media-left">
                 <p class="image is-64x64">
                     <img class="thumbnail" src="/images/thumbnail.svg" alt="promisifying functions">
@@ -408,7 +493,7 @@
                     <span class="level-item">February 2020</span>
                 </span>
                 <span class="level-end">
-                    <span class="level-item tag">1</span>
+                    <span class="level-item tag">2</span>
                 </span>
             </a>
         </li>
@@ -429,7 +514,7 @@
                 <div class="control">
                     <a class="tags has-addons" href="/tags/javascript-promises-async-await-node-js/">
                         <span class="tag">javascript, promises, async, await, node.js</span>
-                        <span class="tag is-grey">1</span>
+                        <span class="tag is-grey">2</span>
                     </a>
                 </div>
                 
@@ -454,6 +539,25 @@
         <h3 class="menu-label">
             Recent
         </h3>
+        
+        <article class="media">
+            
+            <a href="/2020/02/29/handling-blocking-awaits/" class="media-left">
+                <p class="image is-64x64">
+                    <img class="thumbnail" src="/images/thumbnail.svg" alt="Handling Blocking Awaits">
+                </p>
+            </a>
+            
+            <div class="media-content">
+                <div class="content">
+                    <div><time class="has-text-grey is-size-7 is-uppercase" datetime="2020-03-01T06:55:34.000Z">2020-02-29</time></div>
+                    <a href="/2020/02/29/handling-blocking-awaits/" class="title has-link-black-ter is-size-6 has-text-weight-normal">Handling Blocking Awaits</a>
+                    <p class="is-size-7 is-uppercase">
+                        <a class="has-link-grey -link" href="/categories/JavaScript/">JavaScript</a>
+                    </p>
+                </div>
+            </div>
+        </article>
         
         <article class="media">
             
@@ -491,7 +595,7 @@
                     <span class="level-item">February 2020</span>
                 </span>
                 <span class="level-end">
-                    <span class="level-item tag">1</span>
+                    <span class="level-item tag">2</span>
                 </span>
             </a>
         </li>
@@ -512,7 +616,7 @@
                 <div class="control">
                     <a class="tags has-addons" href="/tags/javascript-promises-async-await-node-js/">
                         <span class="tag">javascript, promises, async, await, node.js</span>
-                        <span class="tag is-grey">1</span>
+                        <span class="tag is-grey">2</span>
                     </a>
                 </div>
                 
